@@ -1,0 +1,39 @@
+{
+  "id": "mnist_node",
+  "num_reps": 3,
+  "dataset": "mnist",
+  "model_configs": [
+  {
+      "type": "odenet",
+      "num_filters": 1,
+      "time_dependent": true,
+      "lr": 1e-3,
+      "non_linearity": "relu",
+      "weight_decay": 0.0
+  }
+],
+  "training_config": {
+      "batch_size": 256,
+      "record_freq": 1000,
+      "print_freq": 10,
+      "epochs": 20
+  },
+  "noise_configs": [
+  {
+      "type": "gauss",
+      "param": 50
+  },
+  {
+      "type": "gauss",
+      "param": 75
+  },
+  {
+      "type": "fgsm",
+      "param": 0.3
+  },
+  {
+      "type": "fgsm",
+      "param": 0.5
+  }
+]
+}
