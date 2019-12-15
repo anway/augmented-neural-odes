@@ -237,7 +237,7 @@ def mnist(batch_size=64, size=28, path_to_data='../../mnist_data'):
         transforms.ToTensor()
     ])
 
-    train_data = datasets.MNIST(path_to_data, train=True, download=True,
+    train_data = datasets.MNIST(path_to_data, train=True, download=False,
                                 transform=all_transforms)
     test_data = datasets.MNIST(path_to_data, train=False,
                                transform=all_transforms)

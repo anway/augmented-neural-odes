@@ -6,7 +6,7 @@ import os
 import time
 import torch
 from anode.models import ODENet
-from anode.conv_models import ConvODENet
+from anode.conv_models import ConvODENet, ConvResNet
 from anode.discrete_models import ResNet
 from anode.training import Trainer
 from experiments.dataloaders import mnist, cifar10, tiny_imagenet
@@ -89,12 +89,12 @@ def run_and_save_experiments_img(device, path_to_config):
         for j in range(num_reps):
             print("{}/{} model, {}/{} rep".format(i + 1, len(model_configs), j + 1, num_reps))
 
-            if is_ode:
-                if model_config["type"] == "odenet":
-                    augment_dim = 0
-                else:
-                    augment_dim = model_config["augment_dim"]
+            if model_config["type"] == "odenet" or model_config["type"] == "resnet":
+                augment_dim = 0
+            else:
+                augment_dim = model_config["augment_dim"]
 
+            if is_ode:
                 model = ConvODENet(device, img_size, model_config["num_filters"],
                                    output_dim=output_dim,
                                    augment_dim=augment_dim,
@@ -102,10 +102,10 @@ def run_and_save_experiments_img(device, path_to_config):
                                    non_linearity=model_config["non_linearity"],
                                    adjoint=True)
             else:
-                model = ResNet(data_dim, model_config["hidden_dim"],
-                               model_config["num_layers"],
-                               output_dim=output_dim,
-                               is_img=True)
+                model = ConvResNet(device, img_size, model_config["num_filters"],
+                                   output_dim=output_dim,
+                                   augment_dim=augment_dim,
+                                   non_linearity=model_config["non_linearity"])
 
             model.to(device)
 
@@ -224,6 +224,7 @@ def dataset_mean_loss(trainer, data_loader, device, noise_type="none", noise_par
                 x_batch += fgsm(trainer, x_batch, y_batch, noise_param)
             elif noise_type == "pgd":
                 x_batch += pgd(trainer, x_batch, y_batch, noise_param)
+            x_batch = torch.clamp(x_batch, 0., 1.)
         y_pred = trainer.model(x_batch)
         loss = trainer.loss_func(y_pred, y_batch)
         epoch_loss += loss.item()
@@ -254,6 +255,7 @@ def dataset_acc(trainer, data_loader, device, noise_type="none", noise_param=0):
                 x_batch += fgsm(trainer, x_batch, y_batch, noise_param)
             elif noise_type == "pgd":
                 x_batch += pgd(trainer, x_batch, y_batch, noise_param)
+            x_batch = torch.clamp(x_batch, 0., 1.)
         _, y_pred = torch.max(trainer.model(x_batch), 1)
         correct += (y_pred == y_batch).sum().item()
         total += y_batch.size(0)

@@ -1,12 +1,11 @@
 {
-  "id": "mnist_node",
+  "id": "mnist_resnet",
   "num_reps": 3,
   "dataset": "mnist",
   "model_configs": [
   {
-      "type": "odenet",
-      "num_filters": 65,
-      "time_dependent": true,
+      "type": "resnet",
+      "num_filters": 30,
       "lr": 1e-3,
       "non_linearity": "relu",
       "weight_decay": 0.0

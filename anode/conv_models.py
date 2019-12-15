@@ -161,3 +161,111 @@ class ConvODENet(nn.Module):
         if return_features:
             return features, pred
         return pred
+
+
+class ConvFunc(nn.Module):
+    """Convolutional block, non-ODE.
+
+    Parameters
+    ----------
+    device : torch.device
+
+    img_size : tuple of ints
+        Tuple of (channels, height, width).
+
+    num_filters : int
+        Number of convolutional filters.
+
+    augment_dim: int
+        Number of augmentation channels to add. If 0 does not augment ODE.
+
+    non_linearity : string
+        One of 'relu' and 'softplus'
+    """
+    def __init__(self, device, img_size, num_filters, augment_dim=0,
+                 non_linearity='relu'):
+        super(ConvFunc, self).__init__()
+        self.device = device
+        self.augment_dim = augment_dim
+        self.img_size = img_size
+        self.channels, self.height, self.width = img_size
+        self.channels += augment_dim
+        self.num_filters = num_filters
+        self.nfe = 0  # Number of function evaluations
+
+        self.conv1 = nn.Conv2d(self.channels, self.num_filters,
+                               kernel_size=1, stride=1, padding=0)
+        self.conv2 = nn.Conv2d(self.num_filters, self.num_filters,
+                               kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(self.num_filters, self.channels,
+                                   kernel_size=1, stride=1, padding=0)
+
+        if non_linearity == 'relu':
+            self.non_linearity = nn.ReLU(inplace=True)
+        elif non_linearity == 'softplus':
+            self.non_linearity = nn.Softplus()
+
+    def forward(self, x):
+        """
+        Parameters
+        ----------
+        x : torch.Tensor
+            Shape (batch_size, input_dim)
+        """
+        out = self.conv1(x)
+        out = self.non_linearity(out)
+        out = self.conv2(out)
+        out = self.non_linearity(out)
+        out = self.conv3(out)
+        return out
+
+class ConvResNet(nn.Module):
+    """Creates a convolutional ODEFunc (but without time dependence) followed by a Linear
+    layer.
+
+    Parameters
+    ----------
+    device : torch.device
+
+    img_size : tuple of ints
+        Tuple of (channels, height, width).
+
+    num_filters : int
+        Number of convolutional filters.
+
+    output_dim : int
+        Dimension of output after hidden layer. Should be 1 for regression or
+        num_classes for classification.
+
+    augment_dim: int
+        Number of augmentation channels to add. If 0 does not augment ODE.
+
+    non_linearity : string
+        One of 'relu' and 'softplus'
+
+    tol : float
+        Error tolerance.
+    """
+    def __init__(self, device, img_size, num_filters, output_dim=1,
+                 augment_dim=0, non_linearity='relu',
+                 tol=1e-3):
+        super(ConvResNet, self).__init__()
+        self.device = device
+        self.img_size = img_size
+        self.num_filters = num_filters
+        self.augment_dim = augment_dim
+        self.output_dim = output_dim
+        self.flattened_dim = (img_size[0] + augment_dim) * img_size[1] * img_size[2]
+        self.tol = tol
+
+        self.odefunc = ConvFunc(device, img_size, num_filters, augment_dim,
+                              non_linearity)
+
+        self.linear_layer = nn.Linear(self.flattened_dim, self.output_dim)
+
+    def forward(self, x, return_features=False):
+        features = self.odefunc(x)
+        pred = self.linear_layer(features.view(features.size(0), -1))
+        if return_features:
+            return features, pred
+        return pred
